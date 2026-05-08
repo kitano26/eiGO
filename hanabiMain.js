@@ -3,8 +3,8 @@
  */
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-	height: 360,
+    width: '100%',
+	height: `100%`,
 	backgroundColor: "#0b1c2d",
     scale: {
         mode: Phaser.Scale.FIT,
@@ -17,7 +17,7 @@ const config = {
         }
     },
 
-    scene: [HanabiStartScene, HanabiGameScene]
+    scene: [HanabiStartMenuScene, HanabiGameScene]
 }
 
 const game = new Phaser.Game(config)

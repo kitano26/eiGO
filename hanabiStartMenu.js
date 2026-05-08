@@ -1,6 +1,6 @@
-class HanabiStartScene extends Phaser.Scene {
+class HanabiStartMenuScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'HanabiStartScene' });
+    super({ key: 'HanabiStartMenuScene' });
   }
 
   create() {

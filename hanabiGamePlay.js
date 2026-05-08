@@ -1,3 +1,11 @@
+// target word box dimensions and position FIXED
+const WORD_BOX_WIDTH = 600;
+const WORD_BOX_HEIGHT = 100;
+const WORD_BOX_MARGIN = 20;
+
+// target word font size
+const WORD_FONT_SIZE = '45px';
+
 class HanabiGameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'HanabiGameScene' });
@@ -7,9 +15,6 @@ class HanabiGameScene extends Phaser.Scene {
      * Load assets into scene
      */
     preload() {
-        // Load BBCode text plugin
-        this.load.plugin('rexbbcodetextplugin', 'https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rexbbcodetextplugin.min.js', true);
-        
         // Load images
         this.load.image('redLauncher', 'assets/images/redLauncher.png');
         this.load.image('redLauncherFired', 'assets/images/redLauncherFired.png');
@@ -27,22 +32,20 @@ class HanabiGameScene extends Phaser.Scene {
         this.gameState = 'playing'; // can be 'playing' or 'gameOver'
 
         // Add launcher sprite
-        this.launcherXInitial = 50;
-        this.launcherYInitial = 250;
+        this.launcherXInitial = 60;
+        this.launcherYInitial = this.scale.height - 150;
 
         this.launcher = this.add.sprite(this.launcherXInitial, this.launcherYInitial, 'redLauncher');
         this.launcher.isMoving = true;
-        this.launcher.setScale(0.1);
+        this.launcher.setScale(0.2);
         this.launcher.setDepth(-1); // send to back
 
         // Word box configuration
-        const wordBoxWidth = 300;
-        const wordBoxHeight = 60;
-        const wordBoxX = (this.scale.width - wordBoxWidth) / 2;
-        const wordBoxY = 280;
+        this.wordBoxX = (this.scale.width - WORD_BOX_WIDTH) / 2;  // centered regardless of screen width
+        this.wordBoxY = this.scale.height - WORD_BOX_HEIGHT - WORD_BOX_MARGIN; // fixed distance from bottom
 
         // Draw word box
-        this.wordBox = this.add.rectangle(wordBoxX, wordBoxY, wordBoxWidth, wordBoxHeight, 0xffffff);
+        this.wordBox = this.add.rectangle(this.wordBoxX, this.wordBoxY, WORD_BOX_WIDTH, WORD_BOX_HEIGHT, 0xffffff);
         this.wordBox.setOrigin(0, 0); // top-left origin
         this.wordBox.setStrokeStyle(3, 0x00000); // border color and thickness
 
@@ -51,16 +54,40 @@ class HanabiGameScene extends Phaser.Scene {
         this.wordList = raw.split('\n').slice(1) .map(w => w.trim()).filter(w => /^[a-z ]+$/.test(w));
         this.targetWord =  Phaser.Math.RND.pick(this.wordList);
 
-        // Display target word text
-        this.targetWordText = this.add.rexBBCodeText(wordBoxX, wordBoxY, this.targetWord, {
+        // Compute starting X to center the target word in the box
+        const probe = this.add.text(0, -200, this.targetWord, {
             fontFamily: 'Comic Sans MS',
-            fontSize: 36,
+            fontSize: WORD_FONT_SIZE,
+        });
+        const fullWordWidth = probe.width;
+        probe.destroy();
+
+        // Recompute start X to center this word in the box
+        this.targetWordStartX = this.wordBoxX + (WORD_BOX_WIDTH - fullWordWidth) / 2;
+
+        const textY = this.wordBoxY + WORD_BOX_HEIGHT / 2;
+
+        // Display target word text
+        this.remainingText = this.add.text(this.targetWordStartX, textY, this.targetWord, {
+            fontFamily: 'Comic Sans MS',
+            fontSize: WORD_FONT_SIZE,
             color: '#666666ff'
         });
-        this.targetWordText.setOrigin(0.5, 0.5);
-        this.targetWordText.setPosition(wordBoxX + wordBoxWidth / 2, wordBoxY + wordBoxHeight / 2);
-        this.targetWordText.setDepth(1); // bring to front
- 
+        this.remainingText.setOrigin(0, 0.5);
+        // this.remainingText.setPosition(this.wordBoxX + WORD_BOX_WIDTH / 2, this.wordBoxY + WORD_BOX_HEIGHT / 2);
+        this.remainingText.setDepth(1); // bring to front
+
+        // Text to show correctly typed letters in green
+        this.typedText = '';
+        this.typedText = this.add.text(this.targetWordStartX, textY, '', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: WORD_FONT_SIZE,
+            color: 'rgb(0, 219, 69)'
+        });
+        this.typedText.setOrigin(0, 0.5);
+        // this.typedText.setPosition(this.wordBoxX + WORD_BOX_WIDTH / 2, this.wordBoxY + WORD_BOX_HEIGHT / 2);
+        this.typedText.setDepth(2); // bring to front of target word
+
         // Store user input
         this.userInput = ''; 
 
@@ -156,7 +183,24 @@ class HanabiGameScene extends Phaser.Scene {
      */
     setNewTargetWord() {
         this.targetWord = Phaser.Math.RND.pick(this.wordList);
-        this.targetWordText.setText(this.targetWord);
+        
+        const probe = this.add.text(0, -200, this.targetWord, {
+        fontFamily: 'Comic Sans MS',
+        fontSize: WORD_FONT_SIZE,
+        });
+        const fullWordWidth = probe.width;
+        probe.destroy();
+
+        // Recompute start X to center this word in the box
+        this.targetWordStartX = this.wordBoxX + (WORD_BOX_WIDTH - fullWordWidth) / 2;
+
+        const textY = this.wordBoxY + WORD_BOX_HEIGHT / 2;
+
+        this.typedText.setText('');
+        this.typedText.setPosition(this.targetWordStartX, textY);
+
+        this.remainingText.setText(this.targetWord);
+        this.remainingText.setPosition(this.targetWordStartX, textY);
     }
     
     /**
@@ -183,8 +227,9 @@ class HanabiGameScene extends Phaser.Scene {
                 // Check if key matches next letter in target word
                 if (key === this.targetWord.charAt(this.userInput.length)) {
                     this.userInput += key;                                              // Append key to user input
-                    this.correctText = `[color=green]${this.userInput}[/color]`;        // Only make correct letters in green
-                    this.targetWordText.setText(this.correctText + this.targetWord.slice(this.userInput.length)); // Update displayed text
+                    this.typedText.setText(this.userInput);
+                    this.remainingText.setText(this.targetWord.slice(this.userInput.length));
+                    this.remainingText.setX(this.typedText.x + this.typedText.width); // shift right by typed portion width
                 }
 
                 // Check if user input matches target word
@@ -199,12 +244,12 @@ class HanabiGameScene extends Phaser.Scene {
                     // Launch firework
                     this.launchFirework();
 
+
                     // Select new target word
                     this.setNewTargetWord();
 
                     // Clear user input
                     this.userInput = '';
-                    this.correctText = '';
                 }
             }
         }
