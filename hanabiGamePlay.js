@@ -48,6 +48,8 @@ class HanabiGameScene extends Phaser.Scene {
         // Initialize game state
         this.gameState = 'playing'; // can be 'playing' or 'gameOver'
 
+        this.setupNightSkyBackground();
+
         this.setupLauncher();
 
         // Word box configuration
@@ -287,6 +289,128 @@ class HanabiGameScene extends Phaser.Scene {
     /**********************
      *   CUSTOM METHODS   *
      **********************/
+        
+    /**
+ * Draw an animated night sky background:
+ *   - Deep navy → midnight gradient via layered rects
+ *   - Glowing moon with a soft halo ring
+ *   - 120 stars that twinkle at randomised speeds
+ *   - Slow-drifting cloud wisps near the horizon
+ */
+    setupNightSkyBackground() {
+
+        const W = this.scale.width;
+        const H = this.scale.height;
+
+        // ── Smooth sky gradient: many thin slices at very low alpha ──────────
+        // Base fill (full coverage, darkest colour)
+        this.add.rectangle(W / 2, H / 2, W, H, 0x020924).setDepth(-10);
+
+        // Interpolate from top colour (0x020924) to horizon colour (0x18305e)
+        // across 60 thin strips — each only ~2px tall, alpha 0.06
+        // The overlap of many low-alpha rects looks like a true gradient.
+        const STRIPS   = 60;
+        const topR = 0x02, topG = 0x09, topB = 0x24;
+        const botR = 0x18, botG = 0x30, botB = 0x5e;
+
+        for (let i = 0; i < STRIPS; i++) {
+            const t     = i / (STRIPS - 1);              // 0 → 1
+            const r     = Math.round(topR + (botR - topR) * t);
+            const g     = Math.round(topG + (botG - topG) * t);
+            const b     = Math.round(topB + (botB - topB) * t);
+            const color = (r << 16) | (g << 8) | b;
+
+            const sliceH = H / STRIPS + 4;  // +4 ensures no sub-pixel gaps
+            const sliceY = (i / STRIPS) * H;
+
+            this.add
+                .rectangle(W / 2, sliceY + sliceH / 2, W, sliceH, color, 1.0)
+                .setStrokeStyle()
+                .setDepth(-9);
+        }
+
+        // ── Moon ──────────────────────────────────────────────────────────────
+        const moonX = W * 0.82;
+        const moonY = H * 0.18;
+
+        // Outer halo (large, very faint)
+        this.add.circle(moonX, moonY, 60, 0xd4eeff, 0.08).setDepth(-8);
+        // Mid halo
+        this.add.circle(moonX, moonY, 44, 0xd4eeff, 0.13).setDepth(-8);
+        // Moon body
+        this.add.circle(moonX, moonY, 30, 0xe8f4ff, 1.0).setDepth(-8);
+        // Shadow overlay (crescent effect)
+        this.add.circle(moonX + 10, moonY - 4, 26, 0x0a1a3a, 1.0).setDepth(-7);
+
+        // ── Stars ──────────────────────────────────────────────────────────────
+        const STAR_COUNT = 120;
+        this.stars = [];
+
+        for (let i = 0; i < STAR_COUNT; i++) {
+            const sx = Phaser.Math.Between(10, W - 10);
+            const sy = Phaser.Math.Between(10, H * 0.72); // keep above horizon
+            const r  = Phaser.Math.FloatBetween(0.5, 2.2);
+
+            // Larger stars get a soft glow ring
+            if (r > 1.6) {
+                this.add.circle(sx, sy, r * 2.8, 0xffffff, 0.12).setDepth(-6);
+            }
+
+            const star = this.add.circle(sx, sy, r, 0xffffff, 1).setDepth(-6);
+
+            // Twinkle: fade in/out at a random pace
+            this.tweens.add({
+                targets:  star,
+                alpha:    { from: Phaser.Math.FloatBetween(0.15, 0.5),
+                            to:   Phaser.Math.FloatBetween(0.85, 1.0) },
+                duration: Phaser.Math.Between(800, 3500),
+                yoyo:     true,
+                repeat:   -1,
+                ease:     'Sine.easeInOut',
+                delay:    Phaser.Math.Between(0, 2000),
+            });
+
+            this.stars.push(star);
+        }
+
+        // ── Colour-tinted accent stars (gold / blue-white) ─────────────────
+        const accentColors = [0xffd88a, 0xadd8ff, 0xffc0f0];
+        for (let i = 0; i < 18; i++) {
+            const sx    = Phaser.Math.Between(20, W - 20);
+            const sy    = Phaser.Math.Between(10, H * 0.65);
+            const color = Phaser.Math.RND.pick(accentColors);
+            const accent = this.add.circle(sx, sy, Phaser.Math.FloatBetween(1, 2.5), color, 1)
+                .setDepth(-6);
+            this.tweens.add({
+                targets:  accent,
+                alpha:    { from: 0.4, to: 1 },
+                duration: Phaser.Math.Between(1200, 4000),
+                yoyo:     true,
+                repeat:   -1,
+                ease:     'Sine.easeInOut',
+                delay:    Phaser.Math.Between(0, 3000),
+            });
+        }
+
+        // ── Cloud wisps near horizon (soft, semi-transparent) ─────────────
+        const cloudY = H * 0.74;
+        const clouds = [
+            { x: W * 0.12, w: 130, h: 22 },
+            { x: W * 0.40, w: 180, h: 18 },
+            { x: W * 0.70, w: 110, h: 16 },
+            { x: W * 0.88, w: 150, h: 20 },
+        ];
+        clouds.forEach(c => {
+            // Each cloud = 3 overlapping ellipses for fluffiness
+            [0, -8, 10].forEach((dx, j) => {
+                this.add.ellipse(
+                    c.x + dx, cloudY - j * 3,
+                    c.w * (0.6 + j * 0.25), c.h,
+                    0x2a4a8a, 0.18
+                ).setDepth(-8);
+            });
+        });
+    }  
 
     /**
      * Create and position the launcher sprite, and set it to move across the screen
