@@ -52,14 +52,9 @@ class HanabiGameScene extends Phaser.Scene {
 
         this.setupLauncher();
 
-        // Word box configuration
-        this.wordBoxX = (this.scale.width - WORD_BOX_WIDTH) / 2;  // centered regardless of screen width
-        this.wordBoxY = this.scale.height - WORD_BOX_HEIGHT - WORD_BOX_MARGIN; // fixed distance from bottom
+        this.setupTimer();
 
-        // Draw word box
-        this.wordBox = this.add.rectangle(this.wordBoxX, this.wordBoxY, WORD_BOX_WIDTH, WORD_BOX_HEIGHT, 0xffffff);
-        this.wordBox.setOrigin(0, 0); // top-left origin
-        this.wordBox.setStrokeStyle(3, 0x00000); // border color and thickness
+        this.setupWordBox();
 
         // Load word list and set current target word
         const rawWordList = this.cache.text.get('words');
@@ -79,33 +74,7 @@ class HanabiGameScene extends Phaser.Scene {
         this.currentTierIndex = 0;
         this.targetWord = this.pickTargetWord();
 
-        // Compute starting X to center the target word in the box
-        const probe = this.add.text(0, -200, this.targetWord, {
-            fontFamily: 'Comic Sans MS',
-            fontSize: WORD_FONT_SIZE,
-        });
-        const fullWordWidth = probe.width;
-        probe.destroy();
-
-        // Recompute start X to center this word in the box
-        this.targetWordStartX = this.wordBoxX + (WORD_BOX_WIDTH - fullWordWidth) / 2;
-
-        const textY = this.wordBoxY + WORD_BOX_HEIGHT / 2;
-
-        // Display target word text
-        this.remainingText = this.add.text(this.targetWordStartX, textY, this.targetWord, {
-            fontFamily: 'Comic Sans MS',
-            fontSize: WORD_FONT_SIZE,
-            color: '#666666ff'
-        }).setOrigin(0, 0.5).setDepth(1); // bring to front
-
-        // Text to show correctly typed letters in green
-        this.typedText = '';
-        this.typedText = this.add.text(this.targetWordStartX, textY, '', {
-            fontFamily: 'Comic Sans MS',
-            fontSize: WORD_FONT_SIZE,
-            color: 'rgb(0, 219, 69)'
-        }).setOrigin(0, 0.5).setDepth(2); // bring to front of target word
+        this.setupWordText();
 
         // Store user input
         this.userInput = ''; 
@@ -117,149 +86,11 @@ class HanabiGameScene extends Phaser.Scene {
         this.totalKeystrokes = 0;
         this.correctKeystrokes = 0;
 
-        // Score
-        this.score = 0;
-        this.scoreText = this.add.text(20, 20, `Score: ${this.score}`, {
-            fontSize: '28px',
-            color: '#ffffff'
-        });
+        // Score display
+        this.setupScore();
 
-        this.setupTimer();
-
-        // this.setupGameOverScreen();
         // Create game over overlay (hidden until game over)
-        this.gameOverContainer = this.add.container(0, 0);
-        this.gameOverContainer.setVisible(false);
-        this.gameOverContainer.setDepth(10);
- 
-        const centerX = this.scale.width / 2;
-        const centerY = this.scale.height / 2;
- 
-        // Full-screen dark vignette backdrop
-        const backdrop = this.add.rectangle(
-            this.scale.width / 2, this.scale.height / 2,
-            this.scale.width, this.scale.height,
-            0x000000, 0.72
-        );
- 
-        // Panel background — deep navy with subtle transparency
-        const panelW = 520;
-        const panelH = 370;
-        const panel = this.add.graphics();
-        // Outer glow border (gold)
-        panel.lineStyle(3, 0xFFD700, 0.9);
-        panel.fillStyle(0x05091f, 0.95);
-        panel.strokeRoundedRect(centerX - panelW / 2, centerY - panelH / 2, panelW, panelH, 18);
-        panel.fillRoundedRect(centerX - panelW / 2, centerY - panelH / 2, panelW, panelH, 18);
-        // Inner accent border (dimmer gold)
-        panel.lineStyle(1, 0xFFD700, 0.3);
-        panel.strokeRoundedRect(centerX - panelW / 2 + 6, centerY - panelH / 2 + 6, panelW - 12, panelH - 12, 14);
- 
-        // Decorative top divider line
-        const divider = this.add.graphics();
-        divider.lineStyle(1, 0xFFD700, 0.4);
-        divider.beginPath();
-        divider.moveTo(centerX - 160, centerY - panelH / 2 + 80);
-        divider.lineTo(centerX + 160, centerY - panelH / 2 + 80);
-        divider.strokePath();
- 
-        // 花火 kanji watermark — large, very faint, behind text
-        const kanjiWatermark = this.add.text(centerX, centerY - 10, '花火', {
-            fontFamily: 'serif',
-            fontSize: '180px',
-            color: '#FFD700',
-            alpha: 0.04
-        }).setOrigin(0.5).setAlpha(0.055);
- 
-        // "GAME OVER" title — gold with glow shadow
-        this.gameOverText = this.add.text(centerX, centerY - panelH / 2 + 48, 'GAME OVER', {
-            fontFamily: 'Comic Sans MS',
-            fontSize: '52px',
-            fontStyle: 'bold',
-            color: '#FFD700',
-            stroke: '#FF8C00',
-            strokeThickness: 3,
-        }).setOrigin(0.5);
-        this.gameOverText.setShadow(0, 0, '#FF6600', 18, true, true);
- 
-        // Final score label
-        this.finalScoreText = this.add.text(centerX, centerY + 10, `Score: ${this.score}`, {
-            fontFamily: 'Comic Sans MS',
-            fontSize: '38px',
-            color: '#ffffff',
-            stroke: '#aaaaaa',
-            strokeThickness: 1,
-        }).setOrigin(0.5);
-        this.finalScoreText.setShadow(0, 0, '#88ccff', 8, true, true);
-
-        // Accuracy label
-        this.accuracyText = this.add.text(centerX, centerY + 62, 'Accuracy: --%', {
-            fontFamily: 'Comic Sans MS',
-            fontSize: '24px',
-            color: '#aaccff',
-            stroke: '#001133',
-            strokeThickness: 1,
-        }).setOrigin(0.5);
-        this.accuracyText.setShadow(0, 0, '#4488ff', 6, true, true);
- 
-        // High score badge — green glow, hidden by default
-        this.highScoreText = this.add.text(centerX, centerY + 114, '✦  NEW HIGH SCORE  ✦', {
-            fontFamily: 'Comic Sans MS',
-            fontSize: '24px',
-            color: '#72d677',
-            stroke: '#003300',
-            strokeThickness: 2,
-        }).setOrigin(0.5);
-        this.highScoreText.setShadow(0, 0, '#00ff44', 12, true, true);
-        this.highScoreText.setVisible(false);
- 
-         // Restart button — rounded rect background + label
-        const btnW = 200;
-        const btnH = 52;
-        const btnX = centerX;
-        const btnY = centerY + panelH / 2 - 44;
- 
-        this.restartBtnBg = this.add.graphics();
-        const drawRestartBtn = (hovered) => {
-            this.restartBtnBg.clear();
-            this.restartBtnBg.fillStyle(hovered ? 0x2255cc : 0x0d1a4a, 1);
-            this.restartBtnBg.lineStyle(2, 0xFFD700, hovered ? 1 : 0.7);
-            this.restartBtnBg.fillRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
-            this.restartBtnBg.strokeRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
-        };
-        drawRestartBtn(false);
- 
-        this.restartPromptText = this.add.text(btnX, btnY, '↺  Restart', {
-            fontFamily: 'Comic Sans MS',
-            fontSize: '24px',
-            color: '#FFD700',
-            stroke: '#001133',
-            strokeThickness: 1,
-        }).setOrigin(0.5);
-        this.restartPromptText.setShadow(0, 0, '#4488ff', 6, true, true);
- 
-        // Hit area zone for pointer events
-        this.restartBtnZone = this.add.zone(btnX, btnY, btnW, btnH).setInteractive({ useHandCursor: true });
-        this.restartBtnZone.on('pointerover', () => {
-            drawRestartBtn(true);
-            this.restartPromptText.setColor('#ffffff');
-        });
-        this.restartBtnZone.on('pointerout', () => {
-            drawRestartBtn(false);
-            this.restartPromptText.setColor('#FFD700');
-        });
-        this.restartBtnZone.on('pointerdown', () => {
-            this.restartGame();
-        });
- 
-        this.gameOverContainer.add([
-            backdrop, panel, divider, kanjiWatermark,
-            this.gameOverText, this.finalScoreText,
-            this.accuracyText,this.highScoreText, 
-            this.restartBtnBg, this.restartPromptText, this.restartBtnZone
-        ]);
- 
-
+        this.setupGameOverScreen();
     }
 
     /**
@@ -291,12 +122,12 @@ class HanabiGameScene extends Phaser.Scene {
      **********************/
         
     /**
- * Draw an animated night sky background:
- *   - Deep navy → midnight gradient via layered rects
- *   - Glowing moon with a soft halo ring
- *   - 120 stars that twinkle at randomised speeds
- *   - Slow-drifting cloud wisps near the horizon
- */
+     * Draw an animated night sky background:
+     *   - Deep navy → midnight gradient via layered rects
+     *   - Glowing moon with a soft halo ring
+     *   - 120 stars that twinkle at randomised speeds
+     *   - Slow-drifting cloud wisps near the horizon
+    */
     setupNightSkyBackground() {
 
         const W = this.scale.width;
@@ -413,142 +244,301 @@ class HanabiGameScene extends Phaser.Scene {
     }
 
     /**
+     * Set up the target word box at the bottom of the screen
+     */
+    setupWordBox() {
+        // Word box configuration
+        this.wordBoxX = (this.scale.width - WORD_BOX_WIDTH) / 2;  // centered regardless of screen width
+        this.wordBoxY = this.scale.height - WORD_BOX_HEIGHT - WORD_BOX_MARGIN; // fixed distance from bottom
+
+        // Draw word box
+        this.wordBox = this.add.rectangle(this.wordBoxX, this.wordBoxY, WORD_BOX_WIDTH, WORD_BOX_HEIGHT, 0xffffff);
+        this.wordBox.setOrigin(0, 0); // top-left origin
+        this.wordBox.setStrokeStyle(3, 0x00000); // border color and thickness
+    }
+
+    /**
+     * Set up text objects for the target word: one for the typed portion, one for the remaining portion
+     */
+    setupWordText() {
+        // Compute starting X to center the target word in the box
+        const probe = this.add.text(0, -200, this.targetWord, {
+            fontFamily: 'Comic Sans MS',
+            fontSize: WORD_FONT_SIZE,
+        });
+        const fullWordWidth = probe.width;
+        probe.destroy();
+
+        // Recompute start X to center this word in the box
+        this.targetWordStartX = this.wordBoxX + (WORD_BOX_WIDTH - fullWordWidth) / 2;
+
+        const textY = this.wordBoxY + WORD_BOX_HEIGHT / 2;
+
+        // Display target word text
+        this.remainingText = this.add.text(this.targetWordStartX, textY, this.targetWord, {
+            fontFamily: 'Comic Sans MS',
+            fontSize: WORD_FONT_SIZE,
+            color: '#666666ff'
+        }).setOrigin(0, 0.5).setDepth(1); // bring to front
+
+        // Text to show correctly typed letters in green
+        this.typedText = '';
+        this.typedText = this.add.text(this.targetWordStartX, textY, '', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: WORD_FONT_SIZE,
+            color: 'rgb(0, 219, 69)'
+        }).setOrigin(0, 0.5).setDepth(2); // bring to front of target word
+    }
+
+    /**
      * Create timer
      */
-    // setupTimer(){
-    //     // Timer: 60-second countdown
-    //     this.timeLeft = 5; // seconds
-    //     this.timerText = this.add.text(this.scale.width - 20,
-    //         20,
-    //         `Time: ${this.timeLeft}`,
-    //         {
-    //             fontSize: '28px',
-    //             color: '#ffd700',
-    //             stroke: '#ffffffff',
-    //             strokeThickness: 2
-    //         }
-    //         ).setOrigin(1, 0);
-
-    //     this.timerText.setShadow(0, 0, '#ff00f2ff', 15, true, true);  
-
-    //     this.timerEvent = this.time.addEvent({
-    //         delay: 1000,
-    //         callback: this.onTimerTick,
-    //         callbackScope: this,
-    //         loop: true
-    //     });
-    // }
 
     setupTimer() {
-          this.timeLeft  = 60;
-    this.totalTime = 60;
+        this.timeLeft  = 5;
+        this.totalTime = 5;
 
-       const R  = 38;
-    this.moonR = R;
+        const R  = 38;
+        this.moonR = R;
 
-    // Position in Phaser coords
-    const phaserCX = this.scale.width - 70;
-    const phaserCY = 70;
+        // Position in Phaser coords
+        const phaserCX = this.scale.width - 70;
+        const phaserCY = 70;
 
-    // Create a small HTML canvas overlay on top of the Phaser canvas
-    const size = (R + 26) * 2; // enough room for halos
-    this.moonCanvas = document.createElement('canvas');
-    this.moonCanvas.width  = size;
-    this.moonCanvas.height = size;
-    this.moonCanvas.style.cssText = `
-        position: absolute;
-        pointer-events: none;
-        left: ${phaserCX - size / 2}px;
-        top:  ${phaserCY - size / 2}px;
-    `;
+        // Create a small HTML canvas overlay on top of the Phaser canvas
+        const size = (R + 26) * 2; // enough room for halos
+        this.moonCanvas = document.createElement('canvas');
+        this.moonCanvas.width  = size;
+        this.moonCanvas.height = size;
+        this.moonCanvas.style.cssText = `
+            position: absolute;
+            pointer-events: none;
+            left: ${phaserCX - size / 2}px;
+            top:  ${phaserCY - size / 2}px;
+        `;
 
-    // Insert it as a sibling of the Phaser canvas, inside the same parent
-    const phaserCanvas = this.sys.game.canvas;
-    phaserCanvas.parentElement.style.position = 'relative';
-    phaserCanvas.parentElement.appendChild(this.moonCanvas);
+        // Insert it as a sibling of the Phaser canvas, inside the same parent
+        const phaserCanvas = this.sys.game.canvas;
+        phaserCanvas.parentElement.style.position = 'relative';
+        phaserCanvas.parentElement.appendChild(this.moonCanvas);
 
-    this.moonCtx = this.moonCanvas.getContext('2d');
-    this.moonLocalCX = size / 2; // centre in local canvas coords
-    this.moonLocalCY = size / 2;
+        this.moonCtx = this.moonCanvas.getContext('2d');
+        this.moonLocalCX = size / 2; // centre in local canvas coords
+        this.moonLocalCY = size / 2;
 
-    // Label below moon (still a Phaser text object)
-    this.timerText = this.add.text(phaserCX, phaserCY + R + 16, `${this.timeLeft}s`, {
-        fontSize: '16px',
-        color: '#aaccee',
-        fontFamily: 'Comic Sans MS',
-    }).setOrigin(0.5).setDepth(9).setAlpha(0.8);
+        // Label below moon (still a Phaser text object)
+        this.timerText = this.add.text(phaserCX, phaserCY + R + 16, `${this.timeLeft}s`, {
+            fontSize: '16px',
+            color: '#aaccee',
+            fontFamily: 'Comic Sans MS',
+        }).setOrigin(0.5).setDepth(9).setAlpha(0.8);
 
-    // Clean up overlay when scene shuts down (e.g. restart)
-    this.events.once('shutdown', () => {
-    if (this.moonCanvas) {
-        this.moonCanvas.remove();
-        this.moonCanvas = null;  // ← ADD THIS so the guard works
-        this.moonCtx = null;
-    }
-});
-    this.updateMoonTimer();
-
-    this.timerEvent = this.time.addEvent({
-        delay: 1000,
-        callback: this.onTimerTick,
-        callbackScope: this,
-        loop: true
+        // Clean up overlay when scene shuts down (e.g. restart)
+        this.events.once('shutdown', () => {
+        if (this.moonCanvas) {
+            this.moonCanvas.remove();
+            this.moonCanvas = null;  // ← ADD THIS so the guard works
+            this.moonCtx = null;
+        }
     });
+        this.updateMoonTimer();
 
+        this.timerEvent = this.time.addEvent({
+            delay: 1000,
+            callback: this.onTimerTick,
+            callbackScope: this,
+            loop: true
+        });
     }
+
+    /**
+     * Create score display in top-left corner, with current score and best score
+     */
+        setupScore() {
+        this.score = 0;
+        const scorePanelX = 16;
+        const scorePanelY = 16;
+        const scorePanelW = 160;
+        const scorePanelH = 100;
+
+        this.scorePanelBg = this.add.graphics();
+        this.scorePanelBg.lineStyle(2, 0xFFD700, 0.75);
+        this.scorePanelBg.fillStyle(0x05091f, 0.92);
+        this.scorePanelBg.fillRoundedRect(scorePanelX, scorePanelY, scorePanelW, scorePanelH, 10);
+        this.scorePanelBg.strokeRoundedRect(scorePanelX, scorePanelY, scorePanelW, scorePanelH, 10);
+
+        this.scoreLabelText = this.add.text(scorePanelX + 14, scorePanelY + 10, 'SCORE', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '11px',
+            color: '#FFD700',
+            alpha: 0.6,
+            letterSpacing: 3,
+        });
+        this.scoreLabelText.setAlpha(0.6);
+
+        this.scoreText = this.add.text(scorePanelX + 14, scorePanelY + 26, '0', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '34px',
+            color: '#FFD700',
+        });
+
+        // Divider line
+        this.scoreDivider = this.add.graphics();
+        this.scoreDivider.lineStyle(1, 0xFFD700, 0.2);
+        this.scoreDivider.beginPath();
+        this.scoreDivider.moveTo(scorePanelX + 10, scorePanelY + 70);
+        this.scoreDivider.lineTo(scorePanelX + scorePanelW - 10, scorePanelY + 70);
+        this.scoreDivider.strokePath();
+
+        this.bestLabelText = this.add.text(scorePanelX + 14, scorePanelY + 76, 'BEST', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '10px',
+            color: '#FFD700',
+        }).setAlpha(0.45);
+
+        this.currentHighScore =  parseInt(localStorage.getItem('kataHanabiHighScore') ?? '0');
+        this.isNewHighScore = false; // flag to track if current score is a new high score
+        this.bestScoreText = this.add.text(scorePanelX + scorePanelW - 14, scorePanelY + 74, this.currentHighScore.toLocaleString(), {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '14px',
+            color: '#FFD700',
+        }).setOrigin(1, 0).setAlpha(0.55);
+    }
+
     /** 
      * Create Game Over screen with final score and high score notification
     */
     setupGameOverScreen() {
+        this.gameOverContainer = this.add.container(0, 0);
+        this.gameOverContainer.setVisible(false);
+        this.gameOverContainer.setDepth(10);
+ 
         const centerX = this.scale.width / 2;
         const centerY = this.scale.height / 2;
-
-        // Create game over text
-        this.gameOverText = this.add.text(centerX, centerY - 20, 'Game Over', {
-            fontSize: '48px',
-            color: '#03bafc',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-        this.gameOverText.setVisible(false); // hide until game over
-        
-        // Create high score text (only shown if player beats previous high score)
-        this.highScoreText = this.add.text(centerX, centerY + 50, 'NEW HIGH SCORE!', {
-            fontSize: '32px',
-            color: '#b8336a'
-        }).setOrigin(0.5);
-        this.highScoreText.setVisible(false); // hide until game over
-
-        // Create final score text 
-        this.finalScoreText = this.add.text(centerX, centerY + 90, `Final Score: ${this.score}`, {
-            fontSize: '32px',
-            color: '#fdfcdc'
-        }).setOrigin(0.5);
-        this.finalScoreText.setVisible(false); // hide until game over
-
-        // Create restart button
-        const btnW = 220;
-        const btnH = 55;
-        this.restartButton = this.add.rectangle(centerX, centerY + 170, btnW, btnH, 0x03bafc)
-            .setStrokeStyle(3, 0xffffff)
-            .setInteractive({ useHandCursor: true })
-            .setVisible(false);
  
-        this.restartButtonText = this.add.text(centerX, centerY + 170, '▶  Play Again', {
-            fontSize: '26px',
+        // Full-screen dark vignette backdrop
+        const backdrop = this.add.rectangle(
+            this.scale.width / 2, this.scale.height / 2,
+            this.scale.width, this.scale.height,
+            0x000000, 0.72
+        );
+ 
+        // Panel background — deep navy with subtle transparency
+        const panelW = 520;
+        const panelH = 370;
+        const panel = this.add.graphics();
+        // Outer glow border (gold)
+        panel.lineStyle(3, 0xFFD700, 0.9);
+        panel.fillStyle(0x05091f, 0.95);
+        panel.strokeRoundedRect(centerX - panelW / 2, centerY - panelH / 2, panelW, panelH, 18);
+        panel.fillRoundedRect(centerX - panelW / 2, centerY - panelH / 2, panelW, panelH, 18);
+        // Inner accent border (dimmer gold)
+        panel.lineStyle(1, 0xFFD700, 0.3);
+        panel.strokeRoundedRect(centerX - panelW / 2 + 6, centerY - panelH / 2 + 6, panelW - 12, panelH - 12, 14);
+ 
+        // Decorative top divider line
+        const divider = this.add.graphics();
+        divider.lineStyle(1, 0xFFD700, 0.4);
+        divider.beginPath();
+        divider.moveTo(centerX - 160, centerY - panelH / 2 + 80);
+        divider.lineTo(centerX + 160, centerY - panelH / 2 + 80);
+        divider.strokePath();
+ 
+        // 花火 kanji watermark — large, very faint, behind text
+        const kanjiWatermark = this.add.text(centerX, centerY - 10, '花火', {
+            fontFamily: 'serif',
+            fontSize: '180px',
+            color: '#FFD700',
+            alpha: 0.04
+        }).setOrigin(0.5).setAlpha(0.055);
+ 
+        // "GAME OVER" title — gold with glow shadow
+        this.gameOverText = this.add.text(centerX, centerY - panelH / 2 + 48, 'GAME OVER', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '52px',
+            fontStyle: 'bold',
+            color: '#FFD700',
+            stroke: '#FF8C00',
+            strokeThickness: 3,
+        }).setOrigin(0.5);
+        this.gameOverText.setShadow(0, 0, '#FF6600', 18, true, true);
+ 
+        // High score badge — green glow, hidden by default
+        this.highScoreText = this.add.text(centerX, centerY - 60, '✦  NEW HIGH SCORE  ✦', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '24px',
+            color: '#72d677',
+            stroke: '#003300',
+            strokeThickness: 2,
+        }).setOrigin(0.5);
+        this.highScoreText.setShadow(0, 0, '#00ff44', 12, true, true);
+        this.highScoreText.setVisible(false);
+
+        // Final score label
+        this.finalScoreText = this.add.text(centerX, centerY - 10, `Score: ${this.score}`, {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '38px',
             color: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5).setVisible(false);
+            stroke: '#aaaaaa',
+            strokeThickness: 1,
+        }).setOrigin(0.5);
+        this.finalScoreText.setShadow(0, 0, '#88ccff', 8, true, true);
+
+        // Accuracy label
+        this.accuracyText = this.add.text(centerX, centerY + 30, 'Accuracy: --%', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '24px',
+            color: '#aaccff',
+            stroke: '#001133',
+            strokeThickness: 1,
+        }).setOrigin(0.5);
+        this.accuracyText.setShadow(0, 0, '#4488ff', 6, true, true);
  
-        // Hover effects
-        this.restartButton.on('pointerover', () => {
-            this.restartButton.setFillStyle(0xF07167);
+         // Restart button — rounded rect background + label
+        const btnW = 200;
+        const btnH = 52;
+        const btnX = centerX;
+        const btnY = centerY + panelH / 2 - 44;
+ 
+        this.restartBtnBg = this.add.graphics();
+        const drawRestartBtn = (hovered) => {
+            this.restartBtnBg.clear();
+            this.restartBtnBg.fillStyle(hovered ? 0x2255cc : 0x0d1a4a, 1);
+            this.restartBtnBg.lineStyle(2, 0xFFD700, hovered ? 1 : 0.7);
+            this.restartBtnBg.fillRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+            this.restartBtnBg.strokeRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+        };
+        drawRestartBtn(false);
+ 
+        this.restartPromptText = this.add.text(btnX, btnY, '↺  Restart', {
+            fontFamily: 'Comic Sans MS',
+            fontSize: '24px',
+            color: '#FFD700',
+            stroke: '#001133',
+            strokeThickness: 1,
+        }).setOrigin(0.5);
+        this.restartPromptText.setShadow(0, 0, '#4488ff', 6, true, true);
+ 
+        // Hit area zone for pointer events
+        this.restartBtnZone = this.add.zone(btnX, btnY, btnW, btnH).setInteractive({ useHandCursor: true });
+        this.restartBtnZone.on('pointerover', () => {
+            drawRestartBtn(true);
+            this.restartPromptText.setColor('#ffffff');
         });
-        this.restartButton.on('pointerout', () => {
-            this.restartButton.setFillStyle(0x03BAFC);
+        this.restartBtnZone.on('pointerout', () => {
+            drawRestartBtn(false);
+            this.restartPromptText.setColor('#FFD700');
         });
-        this.restartButton.on('pointerdown', () => {
+        this.restartBtnZone.on('pointerdown', () => {
             this.restartGame();
         });
+ 
+        this.gameOverContainer.add([
+            backdrop, panel, divider, kanjiWatermark,
+            this.gameOverText, this.finalScoreText,
+            this.accuracyText,this.highScoreText, 
+            this.restartBtnBg, this.restartPromptText, this.restartBtnZone
+        ]);
     }
 
     /**
@@ -644,7 +634,23 @@ class HanabiGameScene extends Phaser.Scene {
                     // Increment score based on word length
                     const points = WORD_SCORES[this.targetWord.length] ?? 600;
                     this.score += points;
-                    this.scoreText.setText(`Score: ${this.score}`);
+                    this.scoreText.setText(this.score.toLocaleString());
+                    this.tweens.add({
+                        targets: this.scoreText,
+                        scaleX: 1.25,
+                        scaleY: 1.25,
+                        duration: 90,
+                        ease: 'Sine.Out',
+                        yoyo: true,
+                    });
+
+                   if (this.score > this.currentHighScore) {
+                        this.currentHighScore = this.score; // update cache so this only triggers once per threshold cross
+                        this.isNewHighScore = true;
+                        this.bestScoreText.setText(this.score.toLocaleString());
+                        this.bestScoreText.setAlpha(0.85);
+                        this.bestLabelText.setAlpha(0.85);
+                    }
 
                     // Advance tier index if score has crossed the next threshold
                     const nextTier = SCORE_TIERS[this.currentTierIndex + 1];
@@ -759,70 +765,69 @@ class HanabiGameScene extends Phaser.Scene {
      * Redraws the mask rect so the bright moon fill is visible
      * only for the fraction of time remaining (fills from bottom up).
      */
-Copy
-updateMoonTimer() {
-    if (!this.moonCanvas) return;
+    updateMoonTimer() {
+        if (!this.moonCanvas) return;
 
-    const fraction = this.timeLeft / this.totalTime;
-    const cvs = this.moonCanvas;
-    cvs.width = cvs.width; // hard clear
-    const ctx = cvs.getContext('2d');
-    const cx  = this.moonLocalCX;
-    const cy  = this.moonLocalCY;
-    const R   = this.moonR;
+        const fraction = this.timeLeft / this.totalTime;
+        const cvs = this.moonCanvas;
+        cvs.width = cvs.width; // hard clear
+        const ctx = cvs.getContext('2d');
+        const cx  = this.moonLocalCX;
+        const cy  = this.moonLocalCY;
+        const R   = this.moonR;
 
-    // Halos
-    ctx.beginPath();
-    ctx.arc(cx, cy, R + 22, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(212,238,255,0.07)';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(cx, cy, R + 12, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(212,238,255,0.12)';
-    ctx.fill();
-
-    // Clip all moon drawing to circle boundary
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.clip();
-
-    // Dark base
-    ctx.fillStyle = '#0a1228';
-    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-
-    if (fraction > 0) {
-        // tX: -R = full moon, 0 = half moon, +R = new moon
-        const tX = R * (1 - fraction * 2);
-        const STEPS = 120;
-
+        // Halos
         ctx.beginPath();
-        // Right semicircle top → bottom
-        for (let i = 0; i <= STEPS; i++) {
-            const a = -Math.PI / 2 + Math.PI * i / STEPS;
-            const x = cx + Math.cos(a) * R;
-            const y = cy + Math.sin(a) * R;
-            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-        // Terminator ellipse bottom → top (NO closePath!)
-        for (let i = 0; i <= STEPS; i++) {
-            const a = Math.PI / 2 - Math.PI * i / STEPS;
-            ctx.lineTo(cx + Math.cos(a) * tX, cy + Math.sin(a) * R);
-        }
-        // No closePath — path meets naturally at the top
-
-        ctx.fillStyle = '#e8f4ff';
+        ctx.arc(cx, cy, R + 22, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(212,238,255,0.07)';
         ctx.fill();
-    }
+        ctx.beginPath();
+        ctx.arc(cx, cy, R + 12, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(212,238,255,0.12)';
+        ctx.fill();
 
-    ctx.restore();
+        // Clip all moon drawing to circle boundary
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.clip();
 
-    // Rim
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(170,204,238,0.45)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+        // Dark base
+        ctx.fillStyle = '#0a1228';
+        ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+
+        if (fraction > 0) {
+            // tX: -R = full moon, 0 = half moon, +R = new moon
+            const tX = R * (1 - fraction * 2);
+            const STEPS = 120;
+
+            ctx.beginPath();
+            // Right semicircle top → bottom
+            for (let i = 0; i <= STEPS; i++) {
+                const a = -Math.PI / 2 + Math.PI * i / STEPS;
+                const x = cx + Math.cos(a) * R;
+                const y = cy + Math.sin(a) * R;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            // Terminator ellipse bottom → top (NO closePath!)
+            for (let i = 0; i <= STEPS; i++) {
+                const a = Math.PI / 2 - Math.PI * i / STEPS;
+                ctx.lineTo(cx + Math.cos(a) * tX, cy + Math.sin(a) * R);
+            }
+            // No closePath — path meets naturally at the top
+
+            ctx.fillStyle = '#e8f4ff';
+            ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Rim
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(170,204,238,0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
     }
 
     
@@ -830,21 +835,6 @@ updateMoonTimer() {
     /**
      * Timer tick event
      */
-    // onTimerTick() {
-    //     if (this.gameState === 'gameOver') {
-    //         return;
-    //     }
-
-    //     this.timeLeft--;
-
-    //     // Update timer text
-    //     this.timerText.setText(`Time: ${this.timeLeft}`);
-
-    //     // Check for game over
-    //     if (this.timeLeft <= 0) {
-    //         this.endGame();
-    //     }
-    // }
     onTimerTick() {
         if (this.gameState === 'gameOver') return;
 
@@ -856,39 +846,8 @@ updateMoonTimer() {
     }
 
     /**
-     * End the game and show final score
+     * End the game and show final stats
      */
-    // endGame() {
-    //     this.gameState = 'gameOver';
-
-    //     this.timerEvent.remove(false); // stop timer
-    //     this.launcher.isMoving = false; // stop launcher movement
-
-
-    //     // Hide game assets
-    //     this.launcher.setVisible(false);
-    //     this.wordBox.setVisible(false); // Hide word box   
-    //     this.typedText.setVisible(false);
-    //     this.remainingText.setVisible(false);        
-    //     // this.typedText.setText('');
-    //     // this.remainingText.setText('');
-
-    //     // Show game over assets
-    //     this.gameOverText.setVisible(true);
-    //     this.finalScoreText.setText(`Final Score: ${this.score}`);
-    //     this.finalScoreText.setVisible(true);
-    //     this.restartButton.setVisible(true);
-    //     this.restartButtonText.setVisible(true);
-
-    //     // Get saved high score
-    //     const savedHighScore = localStorage.getItem('kataHanabiHighScore');
-
-    //     // If no high score yet OR new score is higher
-    //     if (!savedHighScore || this.score > parseInt(savedHighScore)) {
-    //         localStorage.setItem('kataHanabiHighScore', this.score);
-    //         this.highScoreText.setVisible(true);
-    //     }
-    // }
     endGame() {
 
         // stop gameplay
@@ -898,6 +857,12 @@ updateMoonTimer() {
         this.wordBox.setVisible(false); // Hide word box           
         this.typedText.setText('');
         this.remainingText.setText('');
+
+        this.scorePanelBg.setVisible(false);
+        this.scoreLabelText.setVisible(false);  
+        this.scoreDivider.setVisible(false);
+        this.bestLabelText.setVisible(false);
+        this.bestScoreText.setVisible(false);
  
         // Update final score text
         this.finalScoreText.setText(`Score: ${this.score}`);
@@ -910,11 +875,14 @@ updateMoonTimer() {
         this.accuracyText.setText(`Accuracy: ${accuracy}%`);
  
         // Check high score
-        const savedHighScore = localStorage.getItem('kataHanabiHighScore');
-        const isHighScore = !savedHighScore || this.score > parseInt(savedHighScore);
-        if (isHighScore) {
+        if (this.isNewHighScore) {
             localStorage.setItem('kataHanabiHighScore', this.score);
             this.highScoreText.setVisible(true);
+
+            this.highScoreText.setAlpha(0);
+            this.time.delayedCall(600, () => {
+                this.tweens.add({ targets: this.highScoreText, alpha: 1, duration: 300, ease: 'Sine.Out' });
+            });
         }
  
         // Animate overlay in: fade + scale from center
@@ -946,12 +914,6 @@ updateMoonTimer() {
             this.tweens.add({ targets: this.accuracyText, alpha: 1, duration: 300, ease: 'Sine.Out' });
         });
 
-        if (isHighScore) {
-            this.highScoreText.setAlpha(0);
-            this.time.delayedCall(600, () => {
-                this.tweens.add({ targets: this.highScoreText, alpha: 1, duration: 300, ease: 'Sine.Out' });
-            });
-        }
         this.time.delayedCall(700, () => {
             this.tweens.add({ targets: this.restartPromptText, alpha: 1, duration: 300, ease: 'Sine.Out' });
             // Pulse the restart prompt indefinitely
