@@ -753,6 +753,26 @@ class HanabiGameScene extends Phaser.Scene {
                         this.bestLabelText.setAlpha(0.85);
                     }
 
+                    // Floating score popup
+                    const popX = this.wordBoxX + WORD_BOX_WIDTH / 2;
+                    const popY = this.wordBoxY - 20;
+                    const popText = this.add.text(popX, popY, `+${earnedPoints}`, {
+                        fontFamily: 'Comic Sans MS',
+                        fontSize: '32px',
+                        color: '#FFD700',
+                        stroke: '#05091f',
+                        strokeThickness: 4,
+                    }).setOrigin(0.5, 1).setDepth(5);
+
+                    this.tweens.add({
+                        targets: popText,
+                        y: popY - 80,
+                        alpha: 0,
+                        duration: 900,
+                        ease: 'Sine.Out',
+                        onComplete: () => popText.destroy()
+                    });
+
                     // Advance tier index if score has crossed the next threshold
                     const nextTier = SCORE_TIERS[this.currentTierIndex + 1];
                     if (nextTier && this.score >= nextTier.minScore) {
