@@ -23,9 +23,9 @@ const SCORE_TIERS = [
 // points awarded per word length (8+ defaults to 600)
 const WORD_SCORES = { 3: 100, 4: 150, 5: 225, 6: 325, 7: 450 };
 
-class HanabiGameScene extends Phaser.Scene {
+export default class PlayScene extends Phaser.Scene {
     constructor() {
-        super({ key: 'HanabiGameScene' });
+        super({ key: 'PlayScene' });
     }
 
     /**
@@ -33,12 +33,12 @@ class HanabiGameScene extends Phaser.Scene {
      */
     preload() {
         // Load images
-        this.load.image('redLauncher', 'assets/images/redLauncher.png');
-        this.load.image('redLauncherFired', 'assets/images/redLauncherFired.png');
-        this.load.image('spark', 'assets/particles/fireworkSpark.png');
+        this.load.image('redLauncher', 'kataKataHanabi/assets/images/redLauncher.png');
+        this.load.image('redLauncherFired', 'kataKataHanabi/assets/images/redLauncherFired.png');
+        this.load.image('spark', 'kataKataHanabi/assets/particles/fireworkSpark.png');
 
         // Load word list
-        this.load.text('words', 'assets/myPicDict.csv');
+        this.load.text('words', 'kataKataHanabi/assets/data/myPicDict.csv');
     }
 
     /**

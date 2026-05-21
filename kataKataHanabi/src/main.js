@@ -1,6 +1,9 @@
 /**
  * Phaser game configuration for KataKata Hanabi
  */
+import StartMenuScene from './scenes/StartMenuScene.js'
+import PlayScene from './scenes/PlayScene.js'
+
 const config = {
     type: Phaser.AUTO,
     width: '100%',
@@ -17,7 +20,7 @@ const config = {
         }
     },
 
-    scene: [HanabiStartMenuScene, HanabiGameScene]
+    scene: [StartMenuScene, PlayScene]
 }
 
 const game = new Phaser.Game(config)
