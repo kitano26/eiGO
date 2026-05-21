@@ -33,12 +33,12 @@ export default class PlayScene extends Phaser.Scene {
      */
     preload() {
         // Load images
-        this.load.image('redLauncher', 'kataKataHanabi/assets/images/redLauncher.png');
-        this.load.image('redLauncherFired', 'kataKataHanabi/assets/images/redLauncherFired.png');
-        this.load.image('spark', 'kataKataHanabi/assets/particles/fireworkSpark.png');
+        this.load.image('redLauncher', 'kata-kata-hanabi/assets/images/redLauncher.png');
+        this.load.image('redLauncherFired', 'kata-kata-hanabi/assets/images/redLauncherFired.png');
+        this.load.image('spark', 'kata-kata-hanabi/assets/particles/fireworkSpark.png');
 
         // Load word list
-        this.load.text('words', 'kataKataHanabi/assets/data/myPicDict.csv');
+        this.load.text('words', 'kata-kata-hanabi/assets/data/myPicDict.csv');
     }
 
     /**
