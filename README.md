@@ -1,1 +1,1 @@
-# Go Go Eigo!
+# Future Empire!
