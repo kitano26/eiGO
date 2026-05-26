@@ -99,12 +99,12 @@ export default class PlayScene extends Phaser.Scene {
         if (this.launcher.isMoving) {
 
             const percentPerSecond = 0.2; // 20% of screen width per second
-            const xSpeed = this.scale.width * percentPerSecond;
+            const xSpeed = this.this.cameras.main.width * percentPerSecond;
 
             this.launcher.x += xSpeed * (delta / 1000);
 
             // Reset if launcher goes off screen
-            if (this.launcher.x > this.scale.width) {
+            if (this.launcher.x > this.this.cameras.main.width) {
                 this.launcher.x = this.launcherXInitial;
                 this.launcher.y = this.launcherYInitial;
                 
@@ -128,8 +128,8 @@ export default class PlayScene extends Phaser.Scene {
     */
     setupNightSkyBackground() {
 
-        const W = this.scale.width;
-        const H = this.scale.height;
+        const W = this.this.cameras.main.width;
+        const H = this.this.cameras.main.height;
 
         // ── Smooth sky gradient: many thin slices at very low alpha ──────────
         // Base fill (full coverage, darkest colour)
@@ -233,7 +233,7 @@ export default class PlayScene extends Phaser.Scene {
      */
     setupLauncher() {
         this.launcherXInitial = 100;
-        this.launcherYInitial = this.scale.height - 150;
+        this.launcherYInitial = this.this.cameras.main.height - 150;
 
         this.launcher = this.add.sprite(this.launcherXInitial, this.launcherYInitial, 'redLauncher');
         this.launcher.isMoving = true;
@@ -246,8 +246,8 @@ export default class PlayScene extends Phaser.Scene {
      */
     setupWordBox() {
         // Word box configuration
-        this.wordBoxX = (this.scale.width - WORD_BOX_WIDTH) / 2;  // centered regardless of screen width
-        this.wordBoxY = this.scale.height - WORD_BOX_HEIGHT - WORD_BOX_MARGIN; // fixed distance from bottom
+        this.wordBoxX = (this.cameras.main.width - WORD_BOX_WIDTH) / 2;  // centered regardless of screen width
+        this.wordBoxY = this.cameras.main.height - WORD_BOX_HEIGHT - WORD_BOX_MARGIN; // fixed distance from bottom
 
         // Draw word box
         this.wordBox = this.add.rectangle(this.wordBoxX, this.wordBoxY, WORD_BOX_WIDTH, WORD_BOX_HEIGHT, 0xffffff);
@@ -300,7 +300,7 @@ export default class PlayScene extends Phaser.Scene {
         this.moonR = R;
 
         // Position in Phaser coords
-        const phaserCX = this.scale.width - 70;
+        const phaserCX = this.cameras.main.width - 70;
         const phaserCY = 70;
 
         // Create a small HTML canvas overlay on top of the Phaser canvas
@@ -509,13 +509,13 @@ export default class PlayScene extends Phaser.Scene {
         this.gameOverContainer.setVisible(false);
         this.gameOverContainer.setDepth(10);
  
-        const centerX = this.scale.width / 2;
-        const centerY = this.scale.height / 2;
+        const centerX = this.this.cameras.main.width / 2;
+        const centerY = this.this.cameras.main.height / 2;
  
         // Full-screen dark vignette backdrop
         const backdrop = this.add.rectangle(
-            this.scale.width / 2, this.scale.height / 2,
-            this.scale.width, this.scale.height,
+            this.this.cameras.main.width / 2, this.this.cameras.main.height / 2,
+            this.this.cameras.main.width, this.this.cameras.main.height,
             0x000000, 0.72
         );
  
@@ -1057,8 +1057,8 @@ export default class PlayScene extends Phaser.Scene {
         const burstCount = 5;
         for (let i = 0; i < burstCount; i++) {
             this.time.delayedCall(i * 260 + 150, () => {
-                const bx = Phaser.Math.Between(80, this.scale.width - 80);
-                const by = Phaser.Math.Between(60, this.scale.height / 2 - 20);
+                const bx = Phaser.Math.Between(80, this.this.cameras.main.width - 80);
+                const by = Phaser.Math.Between(60, this.this.cameras.main.height / 2 - 20);
                 this.explodeFirework(bx, by, Phaser.Math.Between(3, 7));
             });
         }
