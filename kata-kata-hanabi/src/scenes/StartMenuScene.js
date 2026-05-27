@@ -4,7 +4,7 @@ export default class StartMenuScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('spark', 'src/kata-kata-hanabi/assets/particles/fireworkSpark.png');
+        this.load.image('spark', './kata-kata-hanabi/assets/particles/fireworkSpark.png');
     }
 
     create() {

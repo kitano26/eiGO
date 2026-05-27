@@ -33,12 +33,12 @@ export default class PlayScene extends Phaser.Scene {
      */
     preload() {
         // Load images
-        this.load.image('redLauncher', 'src/kata-kata-hanabi/assets/images/redLauncher.png');
-        this.load.image('redLauncherFired', 'src/kata-kata-hanabi/assets/images/redLauncherFired.png');
-        this.load.image('spark', 'src/kata-kata-hanabi/assets/particles/fireworkSpark.png');
+        this.load.image('redLauncher', './kata-kata-hanabi/assets/images/redLauncher.png');
+        this.load.image('redLauncherFired', './kata-kata-hanabi/assets/images/redLauncherFired.png');
+        this.load.image('spark', './kata-kata-hanabi/assets/particles/fireworkSpark.png');
 
         // Load word list
-        this.load.text('words', 'src/kata-kata-hanabi/assets/data/myPicDict.csv');
+        this.load.text('words', './kata-kata-hanabi/assets/data/myPicDict.csv');
     }
 
     /**
@@ -99,12 +99,12 @@ export default class PlayScene extends Phaser.Scene {
         if (this.launcher.isMoving) {
 
             const percentPerSecond = 0.2; // 20% of screen width per second
-            const xSpeed = this.this.cameras.main.width * percentPerSecond;
+            const xSpeed = this.scale.width * percentPerSecond;
 
             this.launcher.x += xSpeed * (delta / 1000);
 
             // Reset if launcher goes off screen
-            if (this.launcher.x > this.this.cameras.main.width) {
+            if (this.launcher.x > this.scale.width) {
                 this.launcher.x = this.launcherXInitial;
                 this.launcher.y = this.launcherYInitial;
                 
@@ -128,8 +128,8 @@ export default class PlayScene extends Phaser.Scene {
     */
     setupNightSkyBackground() {
 
-        const W = this.this.cameras.main.width;
-        const H = this.this.cameras.main.height;
+        const W = this.scale.width;
+        const H = this.scale.height;
 
         // ── Smooth sky gradient: many thin slices at very low alpha ──────────
         // Base fill (full coverage, darkest colour)
@@ -233,7 +233,9 @@ export default class PlayScene extends Phaser.Scene {
      */
     setupLauncher() {
         this.launcherXInitial = 100;
-        this.launcherYInitial = this.this.cameras.main.height - 150;
+        // Position launcher just above the word box, using a proportional offset
+        // that works across different screen heights (e.g. Chromebook)
+        this.launcherYInitial = this.scale.height - Math.max(120, Math.floor(this.scale.height * 0.18));
 
         this.launcher = this.add.sprite(this.launcherXInitial, this.launcherYInitial, 'redLauncher');
         this.launcher.isMoving = true;
@@ -245,12 +247,18 @@ export default class PlayScene extends Phaser.Scene {
      * Set up the target word box at the bottom of the screen
      */
     setupWordBox() {
-        // Word box configuration
-        this.wordBoxX = (this.cameras.main.width - WORD_BOX_WIDTH) / 2;  // centered regardless of screen width
-        this.wordBoxY = this.cameras.main.height - WORD_BOX_HEIGHT - WORD_BOX_MARGIN; // fixed distance from bottom
+        // Word box configuration — clamp width so it never exceeds the canvas
+        const effectiveBoxWidth = Math.min(WORD_BOX_WIDTH, this.scale.width - WORD_BOX_MARGIN * 2);
+        const effectiveBoxHeight = Math.min(WORD_BOX_HEIGHT, Math.floor(this.scale.height * 0.14));
+        this.wordBoxX = (this.scale.width - effectiveBoxWidth) / 2;
+        this.wordBoxY = this.scale.height - effectiveBoxHeight - WORD_BOX_MARGIN;
+
+        // Store effective dimensions for use by other methods
+        this._wordBoxWidth = effectiveBoxWidth;
+        this._wordBoxHeight = effectiveBoxHeight;
 
         // Draw word box
-        this.wordBox = this.add.rectangle(this.wordBoxX, this.wordBoxY, WORD_BOX_WIDTH, WORD_BOX_HEIGHT, 0xffffff);
+        this.wordBox = this.add.rectangle(this.wordBoxX, this.wordBoxY, effectiveBoxWidth, effectiveBoxHeight, 0xffffff);
         this.wordBox.setOrigin(0, 0); // top-left origin
         this.wordBox.setStrokeStyle(3, 0x00000); // border color and thickness
     }
@@ -259,23 +267,31 @@ export default class PlayScene extends Phaser.Scene {
      * Set up text objects for the target word: one for the typed portion, one for the remaining portion
      */
     setupWordText() {
+        const boxW = this._wordBoxWidth ?? WORD_BOX_WIDTH;
+        const boxH = this._wordBoxHeight ?? WORD_BOX_HEIGHT;
+
+        // Scale font down proportionally if box height is smaller than the design height
+        const fontScale = Math.min(1, boxH / WORD_BOX_HEIGHT);
+        const basePx = parseInt(WORD_FONT_SIZE, 10);
+        this._wordFontSize = `${Math.round(basePx * fontScale)}px`;
+
         // Compute starting X to center the target word in the box
         const probe = this.add.text(0, -200, this.targetWord, {
             fontFamily: 'Comic Sans MS',
-            fontSize: WORD_FONT_SIZE,
+            fontSize: this._wordFontSize,
         });
         const fullWordWidth = probe.width;
         probe.destroy();
 
         // Recompute start X to center this word in the box
-        this.targetWordStartX = this.wordBoxX + (WORD_BOX_WIDTH - fullWordWidth) / 2;
+        this.targetWordStartX = this.wordBoxX + (boxW - fullWordWidth) / 2;
 
-        const textY = this.wordBoxY + WORD_BOX_HEIGHT / 2;
+        const textY = this.wordBoxY + boxH / 2;
 
         // Display target word text
         this.remainingText = this.add.text(this.targetWordStartX, textY, this.targetWord, {
             fontFamily: 'Comic Sans MS',
-            fontSize: WORD_FONT_SIZE,
+            fontSize: this._wordFontSize,
             color: '#666666ff'
         }).setOrigin(0, 0.5).setDepth(1); // bring to front
 
@@ -283,7 +299,7 @@ export default class PlayScene extends Phaser.Scene {
         this.typedText = '';
         this.typedText = this.add.text(this.targetWordStartX, textY, '', {
             fontFamily: 'Comic Sans MS',
-            fontSize: WORD_FONT_SIZE,
+            fontSize: this._wordFontSize,
             color: 'rgb(0, 219, 69)'
         }).setOrigin(0, 0.5).setDepth(2); // bring to front of target word
     }
@@ -300,7 +316,7 @@ export default class PlayScene extends Phaser.Scene {
         this.moonR = R;
 
         // Position in Phaser coords
-        const phaserCX = this.cameras.main.width - 70;
+        const phaserCX = this.scale.width - 70;
         const phaserCY = 70;
 
         // Create a small HTML canvas overlay on top of the Phaser canvas
@@ -509,13 +525,13 @@ export default class PlayScene extends Phaser.Scene {
         this.gameOverContainer.setVisible(false);
         this.gameOverContainer.setDepth(10);
  
-        const centerX = this.this.cameras.main.width / 2;
-        const centerY = this.this.cameras.main.height / 2;
+        const centerX = this.scale.width / 2;
+        const centerY = this.scale.height / 2;
  
         // Full-screen dark vignette backdrop
         const backdrop = this.add.rectangle(
-            this.this.cameras.main.width / 2, this.this.cameras.main.height / 2,
-            this.this.cameras.main.width, this.this.cameras.main.height,
+            this.scale.width / 2, this.scale.height / 2,
+            this.scale.width, this.scale.height,
             0x000000, 0.72
         );
  
@@ -675,18 +691,22 @@ export default class PlayScene extends Phaser.Scene {
      */
     setTargetWord() {
         this.targetWord = this.pickTargetWord();
+
+        const boxW = this._wordBoxWidth ?? WORD_BOX_WIDTH;
+        const boxH = this._wordBoxHeight ?? WORD_BOX_HEIGHT;
+        const fontSize = this._wordFontSize ?? WORD_FONT_SIZE;
         
         const probe = this.add.text(0, -200, this.targetWord, {
-        fontFamily: 'Comic Sans MS',
-        fontSize: WORD_FONT_SIZE,
+            fontFamily: 'Comic Sans MS',
+            fontSize: fontSize,
         });
         const fullWordWidth = probe.width;
         probe.destroy();
 
         // Recompute start X to center this word in the box
-        this.targetWordStartX = this.wordBoxX + (WORD_BOX_WIDTH - fullWordWidth) / 2;
+        this.targetWordStartX = this.wordBoxX + (boxW - fullWordWidth) / 2;
 
-        const textY = this.wordBoxY + WORD_BOX_HEIGHT / 2;
+        const textY = this.wordBoxY + boxH / 2;
 
         this.typedText.setText('');
         this.typedText.setPosition(this.targetWordStartX, textY);
@@ -754,7 +774,7 @@ export default class PlayScene extends Phaser.Scene {
                     }
 
                     // Floating score popup
-                    const popX = this.wordBoxX + WORD_BOX_WIDTH / 2;
+                    const popX = this.wordBoxX + (this._wordBoxWidth ?? WORD_BOX_WIDTH) / 2;
                     const popY = this.wordBoxY - 20;
                     const popText = this.add.text(popX, popY, `+${earnedPoints}`, {
                         fontFamily: 'Comic Sans MS',
@@ -1057,8 +1077,8 @@ export default class PlayScene extends Phaser.Scene {
         const burstCount = 5;
         for (let i = 0; i < burstCount; i++) {
             this.time.delayedCall(i * 260 + 150, () => {
-                const bx = Phaser.Math.Between(80, this.this.cameras.main.width - 80);
-                const by = Phaser.Math.Between(60, this.this.cameras.main.height / 2 - 20);
+                const bx = Phaser.Math.Between(80, this.scale.width - 80);
+                const by = Phaser.Math.Between(60, this.scale.height / 2 - 20);
                 this.explodeFirework(bx, by, Phaser.Math.Between(3, 7));
             });
         }
