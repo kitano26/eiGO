@@ -111,6 +111,9 @@ export default class PlayScene extends Phaser.Scene {
                 // Reset target word and user input
                 this.setTargetWord();
                 this.userInput = '';
+
+                this.breakCombo(); // reset combo on missed word
+
             }
         }
     }
